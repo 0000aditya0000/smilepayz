@@ -30,6 +30,8 @@ const normalizePayinResponse = (provider, orderNo) => {
     orderId: provider?.orderNo || orderNo,
     providerOrderId: provider?.tradeNo || null,
     paymentUrl: provider?.channel?.paymentUrl || null,
+    deeplink: provider?.channel?.deeplink || null,
+    paymentMethod: provider?.channel?.paymentMethod || null,
     message: provider?.message || "",
     code: provider?.code || null,
     rawResponse: provider,

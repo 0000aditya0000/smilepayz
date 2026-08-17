@@ -25,12 +25,13 @@ const createPaymentOrder = (data) =>
     db.execute(
       `INSERT INTO smilepayz_payment_orders (
         merchant_id, merchant_order_no, gateway_order_no, user_id, order_amount, status,
-        pay_url, notify_url, return_url, extra, utr, raw_request, raw_response, request_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        pay_url, deeplink, notify_url, return_url, extra, utr, raw_request, raw_response, request_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         gateway_order_no = VALUES(gateway_order_no),
         status = VALUES(status),
         pay_url = VALUES(pay_url),
+        deeplink = VALUES(deeplink),
         raw_response = VALUES(raw_response),
         request_id = VALUES(request_id)`,
       [
@@ -41,6 +42,7 @@ const createPaymentOrder = (data) =>
         data.order_amount,
         data.status ?? 0,
         data.pay_url || null,
+        json(data.deeplink),
         data.notify_url || null,
         data.return_url || null,
         data.extra || null,
@@ -200,6 +202,18 @@ const createWebhookLog = (data) =>
     )
   );
 
+const findPayoutOrder = (orderNo, tradeNo) =>
+  safe("findPayoutOrder", async () => {
+    const [rows] = await db.execute(
+      `SELECT id, withdraw_id, merchant_order_no, gateway_order_no, order_amount, status
+       FROM smilepayz_payout_orders
+       WHERE merchant_order_no = ? OR gateway_order_no = ?
+       LIMIT 1`,
+      [orderNo || "", tradeNo || ""]
+    );
+    return rows[0] || null;
+  });
+
 const createRetryLog = (data) =>
   safe("createRetryLog", () =>
     db.execute(
@@ -221,6 +235,7 @@ module.exports = {
   updatePaymentOrder,
   createPayoutOrder,
   updatePayoutOrder,
+  findPayoutOrder,
   createGatewayLog,
   createRequestLog,
   createResponseLog,

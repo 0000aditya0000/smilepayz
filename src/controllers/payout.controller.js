@@ -34,6 +34,11 @@ const createPayoutHandler = async (req, res) => {
           withdrawId: parsed.withdrawId,
           usedMOrderId,
         });
+      } else {
+        logger.info("Payout:createPayoutHandler", "DB updated — morder_id saved to withdrawl table", {
+          withdrawId: parsed.withdrawId,
+          usedMOrderId,
+        });
       }
     } catch (dbErr) {
       logger.logError(
@@ -75,6 +80,23 @@ const getMerchantBalanceHandler = async (req, res) => {
     });
     return res.status(status).json({ success: false, error: error.message });
   }
+};
+
+const resolveWithdrawl = async (orderNo, tradeNo) => {
+  const [byOrder] = await db.execute(
+    "SELECT id, status, morder_id FROM withdrawl WHERE morder_id = ? LIMIT 1",
+    [orderNo]
+  );
+  if (byOrder.length) return byOrder[0];
+
+  const payout = await repo.findPayoutOrder(orderNo, tradeNo);
+  if (!payout?.withdraw_id) return null;
+
+  const [byId] = await db.execute(
+    "SELECT id, status, morder_id FROM withdrawl WHERE id = ? LIMIT 1",
+    [payout.withdraw_id]
+  );
+  return byId[0] || null;
 };
 
 const payoutWebhookHandler = async (req, res) => {
@@ -154,12 +176,16 @@ const payoutWebhookHandler = async (req, res) => {
       paid_at: mapped.internal === INTERNAL_STATUS.SUCCESS ? new Date() : undefined,
     });
 
+    const withdrawl = await resolveWithdrawl(orderNo, tradeNo);
+    const currentStatus = withdrawl ? Number(withdrawl.status) : null;
+
     if (mapped.internal === INTERNAL_STATUS.SUCCESS) {
-      const [updateResult] = await db.execute(
-        "UPDATE withdrawl SET status = 1 WHERE morder_id = ? AND status != 1",
-        [orderNo]
-      );
-      if (updateResult.affectedRows === 0) {
+      if (!withdrawl) {
+        logger.warn("Payout:Webhook", "Success callback but withdrawl row not found", {
+          orderNo,
+          tradeNo,
+        });
+      } else if (currentStatus === 1) {
         logger.event("INFO", "Payout:Webhook", EVENTS.CALLBACK_DUPLICATE, {
           requestId,
           correlationId,
@@ -168,22 +194,67 @@ const payoutWebhookHandler = async (req, res) => {
           message: "Duplicate payout success callback",
         });
       } else {
-        logger.event("INFO", "Payout:Webhook", EVENTS.TRANSACTION_STATUS_UPDATED, {
+        const [updateResult] = await db.execute(
+          "UPDATE withdrawl SET status = 1, morder_id = ? WHERE id = ? AND status != 1",
+          [orderNo, withdrawl.id]
+        );
+        if (updateResult.affectedRows === 0) {
+          logger.event("INFO", "Payout:Webhook", EVENTS.CALLBACK_DUPLICATE, {
+            requestId,
+            correlationId,
+            orderNo,
+            tradeNo,
+            message: "Duplicate payout success callback",
+          });
+        } else {
+          logger.event("INFO", "Payout:Webhook", EVENTS.TRANSACTION_STATUS_UPDATED, {
+            requestId,
+            correlationId,
+            orderNo,
+            tradeNo,
+            utr: body.utr || null,
+            status: 1,
+            withdrawId: withdrawl.id,
+            message: "Payout success — withdrawl status set to 1",
+          });
+        }
+      }
+    } else if (mapped.internal === INTERNAL_STATUS.FAILED) {
+      if (!withdrawl) {
+        logger.warn("Payout:Webhook", "Failed callback but withdrawl row not found", {
+          orderNo,
+          tradeNo,
+        });
+      } else if (currentStatus === 2) {
+        logger.event("INFO", "Payout:Webhook", EVENTS.CALLBACK_DUPLICATE, {
           requestId,
           correlationId,
           orderNo,
           tradeNo,
-          utr: body.utr || null,
-          status: 1,
+          message: "Duplicate payout failed callback",
         });
-      }
-    } else if (mapped.internal === INTERNAL_STATUS.FAILED) {
-      const [updateResult] = await db.execute(
-        "UPDATE withdrawl SET status = 2, rejected_by = 2 WHERE morder_id = ? AND status != 2",
-        [orderNo]
-      );
-      if (updateResult.affectedRows === 0) {
-        logger.warn("Payout:Webhook", "DB UPDATE matched 0 rows for failed payout", { orderNo });
+      } else {
+        const [updateResult] = await db.execute(
+          "UPDATE withdrawl SET status = 2, rejected_by = 2, morder_id = ? WHERE id = ? AND status != 2",
+          [orderNo, withdrawl.id]
+        );
+        if (updateResult.affectedRows === 0) {
+          logger.warn("Payout:Webhook", "DB UPDATE matched 0 rows for failed payout", {
+            orderNo,
+            withdrawId: withdrawl.id,
+          });
+        } else {
+          logger.event("INFO", "Payout:Webhook", EVENTS.TRANSACTION_STATUS_UPDATED, {
+            requestId,
+            correlationId,
+            orderNo,
+            tradeNo,
+            utr: body.utr || null,
+            status: 2,
+            withdrawId: withdrawl.id,
+            message: "Payout failed — withdrawl status set to 2",
+          });
+        }
       }
     } else {
       logger.event("INFO", "Payout:Webhook", EVENTS.CALLBACK_PROCESSED, {

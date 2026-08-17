@@ -89,6 +89,8 @@ const createPayin = async ({
     order_amount: amount,
     status: toDbOrderStatus(normalized.status),
     pay_url: normalized.paymentUrl,
+    deeplink: normalized.deeplink,
+    extra: normalized.paymentMethod || null,
     notify_url: payload.callbackUrl || config.notifyUrl || null,
     return_url: payload.redirectUrl || config.returnUrl || null,
     raw_request: payload,
