@@ -19,13 +19,30 @@ const config = require("./config/smilepayz");
 
 const app = express();
 
+const allowedOrigins = String(process.env.ALLOWED_ORIGINS || "*")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.set("trust proxy", 1);
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+  })
+);
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(",") || "*",
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-TIMESTAMP", "X-SIGNATURE", "X-PARTNER-ID", "X-Request-Id", "X-Correlation-Id"],
+    origin: allowedOrigins.includes("*") ? true : allowedOrigins,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-TIMESTAMP",
+      "X-SIGNATURE",
+      "X-PARTNER-ID",
+      "X-Request-Id",
+      "X-Correlation-Id",
+    ],
   })
 );
 app.use(morgan("combined", { stream: logger.morganStream }));
