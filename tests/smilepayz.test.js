@@ -212,6 +212,16 @@ describe("client errors", () => {
   test("classifies timeout and network errors", () => {
     assert.equal(classifyError({ code: "ECONNABORTED", message: "timeout" }), "timeout");
     assert.equal(classifyError({ code: "ENOTFOUND" }), "network_error");
+    assert.equal(classifyError({ code: "ENETUNREACH" }), "network_error");
     assert.equal(classifyError({ response: { status: 500 } }), "provider_error");
+  });
+
+  test("Smilepayz provider agent is IPv4-only", () => {
+    const { ipv4HttpsAgent, isIpv6Address } = require("../src/services/smilepayz.client");
+    assert.equal(ipv4HttpsAgent.options.family, 4);
+    assert.equal(typeof ipv4HttpsAgent.options.lookup, "function");
+    assert.equal(isIpv6Address("2a02:4780:f:79fd::1"), true);
+    assert.equal(isIpv6Address("191.101.81.104"), false);
+    assert.equal(isIpv6Address("::ffff:191.101.81.104"), false);
   });
 });
