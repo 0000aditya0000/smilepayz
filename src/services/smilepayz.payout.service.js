@@ -36,6 +36,16 @@ const createPayout = async ({
     throw new ValidationError("Invalid orderNo", "INVALID_ORDER_NO");
   }
 
+  const payoutPaymentMethod = (
+    paymentMethod ||
+    config.defaultPayoutPaymentMethod ||
+    String(ifscCode || "").slice(0, 4).toUpperCase()
+  ).trim();
+
+  if (!payoutPaymentMethod) {
+    throw new ValidationError("Missing required field: paymentMethod", "MISSING_PAYMENT_METHOD");
+  }
+
   const payload = omitUndefined({
     orderNo,
     purpose: purpose || "Vendor payout",
@@ -47,7 +57,7 @@ const createPayout = async ({
       currency: "INR",
       amount,
     },
-    paymentMethod: paymentMethod || config.defaultPayoutPaymentMethod || undefined,
+    paymentMethod: payoutPaymentMethod,
     cashAccount,
     ifscCode,
     receiver: {
