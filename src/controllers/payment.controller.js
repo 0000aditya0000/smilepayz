@@ -15,13 +15,8 @@ const insertRecharge = async ({ orderNo, amount, userId, userMobile, rechargeTyp
   const now = new Date();
   const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
   const time = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-  const query = `
-    INSERT INTO recharge (
-      recharge_id, order_id, userId, user_mobile, recharge_amount,
-      recharge_type, payment_mode, date, time, silkpay_timestamp, recharge_status, isDepAdded
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-  await db.execute(query, [
+  const timestamp = Date.now();
+  const values = [
     orderNo,
     orderNo,
     userId || 0,
@@ -31,10 +26,30 @@ const insertRecharge = async ({ orderNo, amount, userId, userMobile, rechargeTyp
     paymentMode || "smilepayz",
     date,
     time,
-    tradeNo || Date.now(),
+    timestamp,
     "pending",
     0,
-  ]);
+  ];
+
+  try {
+    await db.execute(
+      `INSERT INTO recharge (
+        recharge_id, order_id, userId, user_mobile, recharge_amount,
+        recharge_type, payment_mode, date, time, silkpay_timestamp, recharge_status, isDepAdded,
+        gateway_transaction_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [...values, tradeNo || null]
+    );
+  } catch (err) {
+    if (err?.code !== "ER_BAD_FIELD_ERROR") throw err;
+    await db.execute(
+      `INSERT INTO recharge (
+        recharge_id, order_id, userId, user_mobile, recharge_amount,
+        recharge_type, payment_mode, date, time, silkpay_timestamp, recharge_status, isDepAdded
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      values
+    );
+  }
 };
 
 const createPaymentHandler = async (req, res) => {
