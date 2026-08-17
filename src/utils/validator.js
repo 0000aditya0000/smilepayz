@@ -59,6 +59,9 @@ const validateReceiverName = (name) => {
   return value;
 };
 
+const randomTenDigitMobile = () =>
+  String(Math.floor(1000000000 + Math.random() * 9000000000));
+
 const validatePayinRequest = (body = {}) => {
   const amount = toIntegerAmount(body.amount);
   const orderNo = body.orderNo || body.orderId || body.mOrderId || null;
@@ -75,6 +78,22 @@ const validatePayinRequest = (body = {}) => {
     expiryPeriod: body.expiryPeriod,
     redirectUrl: body.redirectUrl || body.returnUrl,
     callbackUrl: body.callbackUrl || body.notifyUrl,
+  };
+};
+
+/** App deposit: frontend sends only amount + userId. Backend fills the rest. */
+const validateUserOrderRequest = (body = {}) => {
+  const userId = body.userId;
+  if (userId === undefined || userId === null || String(userId).trim() === "") {
+    throw new ValidationError("Missing required field: userId", "MISSING_USER_ID");
+  }
+  return {
+    amount: toIntegerAmount(body.amount),
+    userId: String(userId).trim(),
+    user_mobile: randomTenDigitMobile(),
+    recharge_type: "smilepayz",
+    payment_mode: "smilepayz",
+    purpose: "Wallet deposit",
   };
 };
 
@@ -116,7 +135,9 @@ module.exports = {
   validateIfsc,
   validateAccountNumber,
   validateReceiverName,
+  randomTenDigitMobile,
   validatePayinRequest,
+  validateUserOrderRequest,
   validatePayoutRequest,
   validateBalanceRequest,
 };

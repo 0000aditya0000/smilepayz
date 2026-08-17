@@ -13,6 +13,7 @@ const {
   validateAccountNumber,
   validatePayoutRequest,
   validatePayinRequest,
+  validateUserOrderRequest,
   ValidationError,
 } = require("../src/utils/validator");
 const {
@@ -79,6 +80,12 @@ describe("validator", () => {
   test("validates payin and payout payloads", () => {
     const payin = validatePayinRequest({ amount: 500, orderNo: "PAY202608171234AB" });
     assert.equal(payin.amount, 500);
+    const userOrder = validateUserOrderRequest({ amount: 100, userId: 12345 });
+    assert.equal(userOrder.amount, 100);
+    assert.equal(userOrder.userId, "12345");
+    assert.match(userOrder.user_mobile, /^\d{10}$/);
+    assert.equal(userOrder.recharge_type, "smilepayz");
+    assert.throws(() => validateUserOrderRequest({ amount: 100 }), ValidationError);
     const payout = validatePayoutRequest({
       withdrawId: 99,
       amount: 200,

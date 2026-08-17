@@ -23,7 +23,7 @@ Public app base URL: `https://smilepayz.rollix777.com`
 
 | Local route | Purpose |
 |-------------|---------|
-| `POST /api/payments/user/order` | App pay-in (inserts `recharge`, returns `{ paymentUrl }`) |
+| `POST /api/payments/user/order` | App pay-in. Frontend sends only `{ amount, userId }`. Backend fills mobile, orderNo, and other fields. |
 | `POST /api/payments/create` | Direct pay-in |
 | `POST /api/payment/webhook` | Pay-in callback (responds `SUCCESS`) |
 | `POST /api/payout/create` | Payout (`withdrawId`, `amount`, `bankNo`, `ifsc`, `name`) |

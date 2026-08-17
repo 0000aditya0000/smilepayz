@@ -3,7 +3,7 @@ const smilepayzService = require("../services/smilepayz.service");
 const db = require("../config/database");
 const config = require("../config/smilepayz");
 const logger = require("../utils/logger");
-const { validatePayinRequest, ValidationError } = require("../utils/validator");
+const { validatePayinRequest, validateUserOrderRequest, ValidationError } = require("../utils/validator");
 const { verifySmilepayzCallbackSignature } = require("../services/smilepayz.signature");
 const { mapSmilepayzPayinStatus } = require("../utils/mapper");
 const { EVENTS, INTERNAL_STATUS, toDbOrderStatus } = require("../constants");
@@ -62,7 +62,7 @@ const createUserOrderHandler = async (req, res) => {
       return res.status(403).json({ success: false, error: "Recharge not allowed" });
     }
 
-    const parsed = validatePayinRequest(req.body);
+    const parsed = validateUserOrderRequest(req.body);
     const response = await smilepayzService.createPayin({
       ...parsed,
       requestId: req.requestId,
