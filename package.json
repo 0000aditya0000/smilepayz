@@ -1,0 +1,35 @@
+{
+  "name": "smilepayz-nodejs-gateway",
+  "version": "1.0.0",
+  "description": "Smilepayz Payment Gateway Integration for Node.js (ROLLIX777)",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "npx nodemon src/app.js",
+    "test": "node --test tests/smilepayz.test.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "mysql2": "^3.22.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "smilepayz",
+    "payment-gateway",
+    "nodejs",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
