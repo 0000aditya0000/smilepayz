@@ -1,0 +1,156 @@
+const TABLES = [
+  `CREATE TABLE IF NOT EXISTS smilepayz_merchants (
+    id INT NOT NULL AUTO_INCREMENT,
+    merchant_id VARCHAR(64) NOT NULL,
+    name VARCHAR(100) DEFAULT NULL,
+    secret VARCHAR(255) DEFAULT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    meta JSON DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_smilepayz_merchant_id (merchant_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS smilepayz_payment_orders (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    merchant_id VARCHAR(64) NOT NULL,
+    merchant_order_no VARCHAR(100) NOT NULL,
+    gateway_order_no VARCHAR(100) DEFAULT NULL,
+    user_id INT DEFAULT NULL,
+    order_amount DECIMAL(18,2) NOT NULL,
+    status INT NOT NULL DEFAULT 0,
+    pay_url TEXT DEFAULT NULL,
+    upi VARCHAR(120) DEFAULT NULL,
+    deeplink TEXT DEFAULT NULL,
+    notify_url VARCHAR(500) DEFAULT NULL,
+    return_url VARCHAR(500) DEFAULT NULL,
+    extra VARCHAR(500) DEFAULT NULL,
+    utr VARCHAR(64) DEFAULT NULL,
+    raw_request JSON DEFAULT NULL,
+    raw_response JSON DEFAULT NULL,
+    request_id VARCHAR(64) DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    paid_at DATETIME DEFAULT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_smilepayz_payin_order (merchant_order_no),
+    KEY idx_smilepayz_payin_gateway (gateway_order_no)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS smilepayz_payout_orders (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    merchant_id VARCHAR(64) NOT NULL,
+    merchant_order_no VARCHAR(100) NOT NULL,
+    gateway_order_no VARCHAR(100) DEFAULT NULL,
+    withdraw_id INT DEFAULT NULL,
+    order_amount DECIMAL(18,2) NOT NULL,
+    account_name VARCHAR(120) DEFAULT NULL,
+    card_number VARCHAR(64) DEFAULT NULL,
+    ifsc VARCHAR(20) DEFAULT NULL,
+    bank_name VARCHAR(120) DEFAULT NULL,
+    upi VARCHAR(120) DEFAULT NULL,
+    phone VARCHAR(20) DEFAULT NULL,
+    email VARCHAR(120) DEFAULT NULL,
+    status INT NOT NULL DEFAULT 0,
+    notify_url VARCHAR(500) DEFAULT NULL,
+    extra VARCHAR(500) DEFAULT NULL,
+    utr VARCHAR(64) DEFAULT NULL,
+    raw_request JSON DEFAULT NULL,
+    raw_response JSON DEFAULT NULL,
+    request_id VARCHAR(64) DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    paid_at DATETIME DEFAULT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uq_smilepayz_payout_order (merchant_order_no),
+    KEY idx_smilepayz_payout_gateway (gateway_order_no)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS smilepayz_refunds (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    merchant_id VARCHAR(64) NOT NULL,
+    merchant_order_no VARCHAR(100) NOT NULL,
+    gateway_order_no VARCHAR(100) DEFAULT NULL,
+    amount DECIMAL(18,2) NOT NULL,
+    reason VARCHAR(255) DEFAULT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    raw_response JSON DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  `CREATE TABLE IF NOT EXISTS smilepayz_settlements (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    merchant_id VARCHAR(64) NOT NULL,
+    settlement_date DATE DEFAULT NULL,
+    amount DECIMAL(18,2) NOT NULL,
+    fee DECIMAL(18,2) DEFAULT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'pending',
+    reference VARCHAR(100) DEFAULT NULL,
+    meta JSON DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+];
+
+const LOG_TABLES = [
+  "smilepayz_gateway_logs",
+  "smilepayz_request_logs",
+  "smilepayz_response_logs",
+  "smilepayz_webhook_logs",
+];
+
+const logTableSql = (tableName, extraCols = "") => `
+  CREATE TABLE IF NOT EXISTS ${tableName} (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    request_id VARCHAR(64) DEFAULT NULL,
+    correlation_id VARCHAR(64) DEFAULT NULL,
+    merchant_id VARCHAR(64) DEFAULT NULL,
+    order_no VARCHAR(100) DEFAULT NULL,
+    direction VARCHAR(20) DEFAULT NULL,
+    method VARCHAR(10) DEFAULT NULL,
+    path VARCHAR(255) DEFAULT NULL,
+    status VARCHAR(40) DEFAULT NULL,
+    gateway_status VARCHAR(40) DEFAULT NULL,
+    http_status INT DEFAULT NULL,
+    execution_ms INT DEFAULT NULL,
+    retry_count INT DEFAULT 0,
+    headers JSON DEFAULT NULL,
+    request_payload JSON DEFAULT NULL,
+    response_payload JSON DEFAULT NULL,
+    raw_payload JSON DEFAULT NULL,
+    error_message TEXT DEFAULT NULL,
+    stack_trace TEXT DEFAULT NULL,
+    ip VARCHAR(64) DEFAULT NULL
+    ${extraCols},
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    KEY idx_order_no (order_no),
+    KEY idx_request_id (request_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+`;
+
+const ALL_CREATE_SQL = [
+  ...TABLES,
+  ...LOG_TABLES.map((name) =>
+    name === "smilepayz_webhook_logs"
+      ? logTableSql(name, ", webhook_code INT DEFAULT NULL, signature_valid TINYINT(1) DEFAULT NULL, processed TINYINT(1) DEFAULT 0")
+      : logTableSql(name)
+  ),
+  `CREATE TABLE IF NOT EXISTS smilepayz_retry_logs (
+    id BIGINT NOT NULL AUTO_INCREMENT,
+    request_id VARCHAR(64) DEFAULT NULL,
+    path VARCHAR(255) DEFAULT NULL,
+    attempt INT NOT NULL,
+    error_code VARCHAR(50) DEFAULT NULL,
+    error_message TEXT DEFAULT NULL,
+    payload JSON DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+];
+
+module.exports = { ALL_CREATE_SQL };

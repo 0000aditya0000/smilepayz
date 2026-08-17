@@ -73,6 +73,7 @@ module.exports = {
   payinEndpoint: "/v2.0/transaction/pay-in",
   payoutEndpoint: "/v2.0/disbursement/pay-out",
   balanceEndpoint: "/v2.0/inquiry-balance",
+  publicBaseUrl: pick(process.env.APP_BASE_URL) || "https://smilepayz.rollix777.com",
   notifyUrl: pick(process.env.NOTIFY_URL) || "https://smilepayz.rollix777.com/api/payment/webhook",
   payoutNotifyUrl: pick(process.env.PAYOUT_NOTIFY_URL) || "https://smilepayz.rollix777.com/api/payout/webhook",
   returnUrl: pick(process.env.RETURN_URL) || "https://r7dream.com/",

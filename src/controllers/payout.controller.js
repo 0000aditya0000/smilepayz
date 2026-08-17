@@ -6,7 +6,8 @@ const config = require("../config/smilepayz");
 const { validatePayoutRequest, validateBalanceRequest, ValidationError } = require("../utils/validator");
 const { verifySmilepayzCallbackSignature } = require("../services/smilepayz.signature");
 const { mapSmilepayzPayoutStatus } = require("../utils/mapper");
-const { EVENTS, INTERNAL_STATUS } = require("../constants");
+const { EVENTS, INTERNAL_STATUS, toDbOrderStatus } = require("../constants");
+const repo = require("../db/repository");
 
 const createPayoutHandler = async (req, res) => {
   try {
@@ -145,6 +146,13 @@ const payoutWebhookHandler = async (req, res) => {
     }
 
     const mapped = mapSmilepayzPayoutStatus(body.status);
+    await repo.updatePayoutOrder(orderNo, {
+      gateway_order_no: tradeNo,
+      status: toDbOrderStatus(mapped.internal),
+      utr: body.utr || undefined,
+      raw_response: body,
+      paid_at: mapped.internal === INTERNAL_STATUS.SUCCESS ? new Date() : undefined,
+    });
 
     if (mapped.internal === INTERNAL_STATUS.SUCCESS) {
       const [updateResult] = await db.execute(
@@ -187,6 +195,20 @@ const payoutWebhookHandler = async (req, res) => {
         message: "Non-final payout callback acknowledged",
       });
     }
+
+    await repo.createWebhookLog({
+      request_id: requestId,
+      correlation_id: correlationId,
+      merchant_id: config.partnerId,
+      order_no: orderNo,
+      path: req.originalUrl,
+      status: mapped.internal,
+      gateway_status: mapped.raw,
+      signature_valid: true,
+      request_payload: body,
+      processed: true,
+      ip: req.ip,
+    });
 
     return res.status(200).send("SUCCESS");
   } catch (error) {

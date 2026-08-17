@@ -3,8 +3,9 @@ const { postJson } = require("./smilepayz.client");
 const { generateSmilepayzOrderNo, isValidSmilepayzOrderNo } = require("../utils/orderNo");
 const { validateOrderNo, ValidationError } = require("../utils/validator");
 const { normalizePayinResponse, normalizeBalanceResponse } = require("../utils/mapper");
-const { OPERATIONS, PROVIDER_SUCCESS_CODE } = require("../constants");
+const { OPERATIONS, PROVIDER_SUCCESS_CODE, toDbOrderStatus } = require("../constants");
 const logger = require("../utils/logger");
+const repo = require("../db/repository");
 
 const omitUndefined = (obj) => {
   const out = {};
@@ -22,6 +23,7 @@ const createPayin = async ({
   expiryPeriod,
   redirectUrl,
   callbackUrl,
+  userId,
   requestId,
   correlationId,
 }) => {
@@ -77,6 +79,21 @@ const createPayin = async ({
     providerOrderId: normalized.providerOrderId,
     status: normalized.status,
     message: "Smilepayz pay-in accepted",
+  });
+
+  await repo.createPaymentOrder({
+    merchant_id: config.partnerId,
+    merchant_order_no: orderNo,
+    gateway_order_no: normalized.providerOrderId,
+    user_id: userId || null,
+    order_amount: amount,
+    status: toDbOrderStatus(normalized.status),
+    pay_url: normalized.paymentUrl,
+    notify_url: payload.callbackUrl || config.notifyUrl || null,
+    return_url: payload.redirectUrl || config.returnUrl || null,
+    raw_request: payload,
+    raw_response: result.data,
+    request_id: requestId,
   });
 
   return {

@@ -6,7 +6,8 @@ const logger = require("../utils/logger");
 const { validatePayinRequest, ValidationError } = require("../utils/validator");
 const { verifySmilepayzCallbackSignature } = require("../services/smilepayz.signature");
 const { mapSmilepayzPayinStatus } = require("../utils/mapper");
-const { EVENTS, INTERNAL_STATUS } = require("../constants");
+const { EVENTS, INTERNAL_STATUS, toDbOrderStatus } = require("../constants");
+const repo = require("../db/repository");
 
 const pad = (n) => String(n).padStart(2, "0");
 
@@ -160,6 +161,18 @@ const webhookHandler = async (req, res) => {
         correlationId,
         reason: "missing_required_fields",
       });
+      await repo.createWebhookLog({
+        request_id: requestId,
+        correlation_id: correlationId,
+        merchant_id: body.merchantId,
+        order_no: orderNo,
+        path: req.originalUrl,
+        status: "rejected",
+        error_message: "missing_required_fields",
+        request_payload: body,
+        processed: false,
+        ip: req.ip,
+      });
       return res.status(400).send("INVALID");
     }
 
@@ -180,6 +193,20 @@ const webhookHandler = async (req, res) => {
         formula: verification.formula,
         message: "Pay-in callback signature failed — transaction not updated",
       });
+      await repo.createWebhookLog({
+        request_id: requestId,
+        correlation_id: correlationId,
+        merchant_id: body.merchantId,
+        order_no: orderNo,
+        path: req.originalUrl,
+        status: "signature_failed",
+        gateway_status: body.status,
+        signature_valid: false,
+        error_message: verification.reason,
+        request_payload: body,
+        processed: false,
+        ip: req.ip,
+      });
       return res.status(401).send("INVALID_SIGNATURE");
     }
 
@@ -197,10 +224,31 @@ const webhookHandler = async (req, res) => {
         reason: "merchant_mismatch",
         merchantId: body.merchantId,
       });
+      await repo.createWebhookLog({
+        request_id: requestId,
+        correlation_id: correlationId,
+        merchant_id: body.merchantId,
+        order_no: orderNo,
+        path: req.originalUrl,
+        status: "rejected",
+        signature_valid: true,
+        error_message: "merchant_mismatch",
+        request_payload: body,
+        processed: false,
+        ip: req.ip,
+      });
       return res.status(401).send("INVALID_MERCHANT");
     }
 
     const mapped = mapSmilepayzPayinStatus(body.status);
+    await repo.updatePaymentOrder(orderNo, {
+      gateway_order_no: tradeNo,
+      status: toDbOrderStatus(mapped.internal),
+      utr: body.utr || undefined,
+      raw_response: body,
+      paid_at: mapped.internal === INTERNAL_STATUS.SUCCESS ? new Date() : undefined,
+    });
+
     if (mapped.internal !== INTERNAL_STATUS.SUCCESS) {
       logger.event("INFO", "PayIn:Webhook", EVENTS.CALLBACK_PROCESSED, {
         requestId,
@@ -217,6 +265,19 @@ const webhookHandler = async (req, res) => {
           [orderNo]
         );
       }
+      await repo.createWebhookLog({
+        request_id: requestId,
+        correlation_id: correlationId,
+        merchant_id: config.partnerId,
+        order_no: orderNo,
+        path: req.originalUrl,
+        status: mapped.internal,
+        gateway_status: mapped.raw,
+        signature_valid: true,
+        request_payload: body,
+        processed: true,
+        ip: req.ip,
+      });
       return res.status(200).send("SUCCESS");
     }
 
@@ -297,6 +358,20 @@ const webhookHandler = async (req, res) => {
       utr: body.utr || null,
       status: "success",
       message: "Pay-in callback processed",
+    });
+
+    await repo.createWebhookLog({
+      request_id: requestId,
+      correlation_id: correlationId,
+      merchant_id: config.partnerId,
+      order_no: orderNo,
+      path: req.originalUrl,
+      status: "success",
+      gateway_status: mapped.raw,
+      signature_valid: true,
+      request_payload: body,
+      processed: true,
+      ip: req.ip,
     });
 
     return res.status(200).send("SUCCESS");

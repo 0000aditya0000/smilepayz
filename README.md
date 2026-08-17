@@ -17,6 +17,8 @@ Base URL is selected by `SMILEPAYZ_ENV`:
 - sandbox: `https://sandbox-gateway.smilepayz.com`
 - production: `https://gateway.smilepayz.com`
 
+Public app base URL: `https://smilepayz.rollix777.com`
+
 ## Local API (Skillpay-compatible)
 
 | Local route | Purpose |
@@ -74,6 +76,34 @@ npm run dev
 ```
 
 Configure RSA keys and Merchant Secret from the Smilepayz Merchant Portal. Never commit private keys.
+
+## Database tables
+
+On startup the gateway creates the same table set as Aeropay, prefixed `smilepayz_` (instead of `aeropay_`):
+
+| Table | Purpose |
+|-------|---------|
+| `smilepayz_gateway_logs` | Gateway operation logs |
+| `smilepayz_merchants` | Merchant / partner config |
+| `smilepayz_payment_orders` | Pay-in orders |
+| `smilepayz_payout_orders` | Pay-out orders |
+| `smilepayz_refunds` | Refunds |
+| `smilepayz_request_logs` | Outbound/inbound request payloads |
+| `smilepayz_response_logs` | Provider and HTTP responses |
+| `smilepayz_retry_logs` | Retry attempts |
+| `smilepayz_settlements` | Settlements |
+| `smilepayz_webhook_logs` | Pay-in / pay-out callbacks |
+
+Platform tables `recharge` and `withdrawl` are still used. Disable auto-create with `DB_SYNC_LOG_TABLES=false`. SQL is also in `sql/smilepayz_tables.sql` for phpMyAdmin.
+
+## Rate limits (Skillpay-compatible)
+
+| Endpoint | Limit |
+|----------|--------|
+| `POST /api/payments/user/order` | 5 requests / user / 15 minutes |
+| `POST /api/payments/create` and `/payin` | 3 requests / user / 5 minutes |
+
+Keyed by `userId` so users on the same IP are limited independently.
 
 ## Logging
 

@@ -3,8 +3,9 @@ const { postJson } = require("./smilepayz.client");
 const { generateSmilepayzOrderNo, isValidSmilepayzOrderNo } = require("../utils/orderNo");
 const { validateOrderNo, ValidationError } = require("../utils/validator");
 const { normalizePayoutResponse } = require("../utils/mapper");
-const { OPERATIONS } = require("../constants");
+const { OPERATIONS, toDbOrderStatus } = require("../constants");
 const logger = require("../utils/logger");
+const repo = require("../db/repository");
 
 const omitUndefined = (obj) => {
   const out = {};
@@ -23,6 +24,7 @@ const createPayout = async ({
   purpose,
   callbackUrl,
   orderNo: requestedOrderNo,
+  withdrawId,
   requestId,
   correlationId,
 }) => {
@@ -79,6 +81,23 @@ const createPayout = async ({
     providerOrderId: normalized.providerOrderId,
     status: normalized.status,
     message: "Smilepayz pay-out accepted",
+  });
+
+  await repo.createPayoutOrder({
+    merchant_id: config.partnerId,
+    merchant_order_no: orderNo,
+    gateway_order_no: normalized.providerOrderId,
+    withdraw_id: withdrawId || null,
+    order_amount: amount,
+    account_name: receiverName,
+    card_number: cashAccount,
+    ifsc: ifscCode,
+    status: toDbOrderStatus(normalized.status),
+    notify_url: payload.callbackUrl || config.payoutNotifyUrl || null,
+    utr: normalized.utr,
+    raw_request: payload,
+    raw_response: result.data,
+    request_id: requestId,
   });
 
   return {

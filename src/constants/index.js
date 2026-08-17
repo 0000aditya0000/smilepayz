@@ -38,6 +38,19 @@ const INTERNAL_STATUS = {
   UNKNOWN: "unknown",
 };
 
+/** Integer status stored on smilepayz_payment_orders / smilepayz_payout_orders (Aeropay-compatible). */
+const DB_ORDER_STATUS = {
+  PENDING: 0,
+  SUCCESS: 1,
+  FAILED: 2,
+};
+
+const toDbOrderStatus = (internal) => {
+  if (internal === INTERNAL_STATUS.SUCCESS) return DB_ORDER_STATUS.SUCCESS;
+  if (internal === INTERNAL_STATUS.FAILED) return DB_ORDER_STATUS.FAILED;
+  return DB_ORDER_STATUS.PENDING;
+};
+
 const PAYIN_STATUS_MAP = {
   SUCCESS: INTERNAL_STATUS.SUCCESS,
   PROCESSING: INTERNAL_STATUS.PENDING,
@@ -56,6 +69,8 @@ module.exports = {
   EVENTS,
   PROVIDER_SUCCESS_CODE,
   INTERNAL_STATUS,
+  DB_ORDER_STATUS,
+  toDbOrderStatus,
   PAYIN_STATUS_MAP,
   PAYOUT_STATUS_MAP,
   FAILED_STATUSES,

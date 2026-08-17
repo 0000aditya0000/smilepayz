@@ -14,9 +14,12 @@ const { requestIdMiddleware } = require("./middlewares/requestId");
 const { requestLogger } = require("./middlewares/requestLogger");
 const logger = require("./utils/logger");
 const { ValidationError } = require("./utils/validator");
+const { syncGatewayTables } = require("./db/sync");
+const config = require("./config/smilepayz");
 
 const app = express();
 
+app.set("trust proxy", 1);
 app.use(helmet());
 app.use(
   cors({
@@ -47,6 +50,7 @@ app.get("/health", (req, res) => {
     timestamp: new Date().toISOString(),
     service: "smilepayz-gateway",
     env: process.env.SMILEPAYZ_ENV || "sandbox",
+    publicBaseUrl: config.publicBaseUrl,
   });
 });
 
@@ -91,14 +95,26 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
+const shouldSyncTables = process.env.DB_SYNC_LOG_TABLES !== "false";
 
 if (require.main === module) {
-  app.listen(PORT, () => {
-    logger.info("App", `Smilepayz Gateway Server running on port ${PORT}`);
-    logger.info("App", `PayIn  API: http://localhost:${PORT}/api/payments`);
-    logger.info("App", `Payout API: http://localhost:${PORT}/api/payout`);
-    logger.info("App", `Health:     http://localhost:${PORT}/health`);
-  });
+  (async () => {
+    try {
+      if (shouldSyncTables) {
+        await syncGatewayTables();
+      }
+      app.listen(PORT, () => {
+        logger.info("App", `Smilepayz Gateway Server running on port ${PORT}`);
+        logger.info("App", `Public URL: ${config.publicBaseUrl}`);
+        logger.info("App", `PayIn  API: ${config.publicBaseUrl}/api/payments`);
+        logger.info("App", `Payout API: ${config.publicBaseUrl}/api/payout`);
+        logger.info("App", `Health:     ${config.publicBaseUrl}/health`);
+      });
+    } catch (err) {
+      logger.logError("App", "Failed to start Smilepayz gateway", err);
+      process.exit(1);
+    }
+  })();
 }
 
 module.exports = app;

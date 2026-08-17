@@ -114,7 +114,7 @@ const verifySmilepayzCallbackSignature = ({
     };
   }
 
-  const keyMaterial = platformPublicKey || config.platformPublicKey;
+  const keyMaterial = platformPublicKey === undefined ? config.platformPublicKey : platformPublicKey;
   if (!keyMaterial) {
     logger.error(
       "Smilepayz:verifyCallbackSignature",
