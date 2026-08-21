@@ -36,10 +36,11 @@ const createPayout = async ({
     throw new ValidationError("Invalid orderNo", "INVALID_ORDER_NO");
   }
 
+  // Smilepayz expects full IFSC as paymentMethod (e.g. PUNB0123456), not bank code prefix.
   const payoutPaymentMethod = (
     paymentMethod ||
     config.defaultPayoutPaymentMethod ||
-    String(ifscCode || "").slice(0, 4).toUpperCase()
+    String(ifscCode || "").trim().toUpperCase()
   ).trim();
 
   if (!payoutPaymentMethod) {
