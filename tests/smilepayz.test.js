@@ -16,6 +16,7 @@ const {
   validateUserOrderRequest,
   ValidationError,
 } = require("../src/utils/validator");
+const { resolvePayoutPaymentMethod } = require("../src/utils/paymentMethod");
 const {
   mapSmilepayzPayinStatus,
   mapSmilepayzPayoutStatus,
@@ -58,6 +59,35 @@ describe("orderNo", () => {
     assert.equal(isValidSmilepayzOrderNo("PAY-1"), false);
     assert.equal(isValidSmilepayzOrderNo("abc"), false);
     assert.throws(() => validateOrderNo("PAY_1"), ValidationError);
+  });
+});
+
+describe("paymentMethod", () => {
+  test("maps IFSC prefix to Smilepayz Method codes", () => {
+    assert.equal(resolvePayoutPaymentMethod({ ifscCode: "PUNB0123456" }), "PNB");
+    assert.equal(resolvePayoutPaymentMethod({ ifscCode: "HDFC0001234" }), "HDFC");
+    assert.equal(resolvePayoutPaymentMethod({ ifscCode: "CNRB0004901" }), "CANARA");
+    assert.equal(resolvePayoutPaymentMethod({ ifscCode: "ICIC0000001" }), "ICICI");
+    assert.equal(resolvePayoutPaymentMethod({ ifscCode: "SBIN0000001" }), "OTHERS");
+    assert.equal(resolvePayoutPaymentMethod({ ifscCode: "XXXX0000001" }), "OTHERS");
+  });
+
+  test("keeps explicit Smilepayz Method when already valid", () => {
+    assert.equal(
+      resolvePayoutPaymentMethod({ ifscCode: "PUNB0123456", paymentMethod: "PNB" }),
+      "PNB"
+    );
+    assert.equal(
+      resolvePayoutPaymentMethod({ ifscCode: "PUNB0123456", paymentMethod: "OTHERS" }),
+      "OTHERS"
+    );
+  });
+
+  test("maps mistaken full-IFSC paymentMethod via prefix", () => {
+    assert.equal(
+      resolvePayoutPaymentMethod({ paymentMethod: "PUNB0123456" }),
+      "PNB"
+    );
   });
 });
 

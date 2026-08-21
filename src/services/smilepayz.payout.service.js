@@ -3,6 +3,7 @@ const { postJson } = require("./smilepayz.client");
 const { generateSmilepayzOrderNo, isValidSmilepayzOrderNo } = require("../utils/orderNo");
 const { validateOrderNo, ValidationError } = require("../utils/validator");
 const { normalizePayoutResponse } = require("../utils/mapper");
+const { resolvePayoutPaymentMethod } = require("../utils/paymentMethod");
 const { OPERATIONS, toDbOrderStatus } = require("../constants");
 const logger = require("../utils/logger");
 const repo = require("../db/repository");
@@ -36,16 +37,11 @@ const createPayout = async ({
     throw new ValidationError("Invalid orderNo", "INVALID_ORDER_NO");
   }
 
-  // Smilepayz expects full IFSC as paymentMethod (e.g. PUNB0123456), not bank code prefix.
-  const payoutPaymentMethod = (
-    paymentMethod ||
-    config.defaultPayoutPaymentMethod ||
-    String(ifscCode || "").trim().toUpperCase()
-  ).trim();
-
-  if (!payoutPaymentMethod) {
-    throw new ValidationError("Missing required field: paymentMethod", "MISSING_PAYMENT_METHOD");
-  }
+  // Smilepayz expects bank Method code (PNB, HDFC, CANARA, …), not full IFSC.
+  const payoutPaymentMethod = resolvePayoutPaymentMethod({
+    ifscCode,
+    paymentMethod: paymentMethod || config.defaultPayoutPaymentMethod,
+  });
 
   const payload = omitUndefined({
     orderNo,
