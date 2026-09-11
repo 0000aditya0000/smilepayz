@@ -72,30 +72,24 @@ app.get("/health", (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  res.json({
-    message: "Smilepayz Payment Gateway API",
-    version: "1.0.0",
-    endpoints: {
-      createUserOrder: "POST /api/payments/user/order",
-      createPayment: "POST /api/payments/create",
-      payin: "POST /api/payments/payin",
-      payinBalance: "POST /api/payments/balance",
-      payinWebhook: "POST /api/payment/webhook",
-      createPayout: "POST /api/payout/create",
-      merchantBalance: "GET /api/payout/balance",
-      payoutWebhook: "POST /api/payout/webhook",
-      health: "GET /health",
-    },
-    smilepayzEndpoints: {
-      payin: "POST /v2.0/transaction/pay-in",
-      payout: "POST /v2.0/disbursement/pay-out",
-      balance: "POST /v2.0/inquiry-balance",
-    },
-  });
+  res.status(404).type("text/plain").send("Page not existed");
+});
+
+app.all("/api/docs", (req, res) => {
+  res.status(404).type("text/plain").send("Page not existed");
+});
+app.all("/api/docs/*", (req, res) => {
+  res.status(404).type("text/plain").send("Page not existed");
+});
+app.all("/swagger", (req, res) => {
+  res.status(404).type("text/plain").send("Page not existed");
+});
+app.all("/docs", (req, res) => {
+  res.status(404).type("text/plain").send("Page not existed");
 });
 
 app.use((req, res) => {
-  res.status(404).json({ success: false, error: "Route not found" });
+  res.status(404).type("text/plain").send("Page not existed");
 });
 
 app.use((err, req, res, next) => {
