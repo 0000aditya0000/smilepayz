@@ -6,9 +6,10 @@ const {
   getMerchantBalanceHandler,
   payoutWebhookHandler,
 } = require("../controllers/payout.controller");
+const { requirePayoutSecret } = require("../middleware/requirePayoutSecret");
 
-router.post("/create", createPayoutHandler);
-router.post("/payout", createPayoutHandler);
+router.post("/create", requirePayoutSecret, createPayoutHandler);
+router.post("/payout", requirePayoutSecret, createPayoutHandler);
 router.get("/balance", getMerchantBalanceHandler);
 router.post("/balance", getMerchantBalanceHandler);
 router.post("/webhook", payoutWebhookHandler);
