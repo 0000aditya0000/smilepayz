@@ -4,8 +4,8 @@
   "description": "Smilepayz Payment Gateway Integration for Node.js (ROLLIX777)",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "npx nodemon src/app.js",
+    "start": "node api.js && node src/app.js",
+    "dev": "node api.js && npx nodemon src/app.js",
     "test": "node --test tests/smilepayz.test.js"
   },
   "dependencies": {
